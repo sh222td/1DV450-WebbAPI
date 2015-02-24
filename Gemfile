@@ -32,6 +32,8 @@ gem 'bootstrap-sass', '~> 3.3.3'
 # responders gem
 gem 'responders'
 
+gem 'geocoder'
+
 # Use Unicorn as the app server
 # gem 'unicorn'
 
