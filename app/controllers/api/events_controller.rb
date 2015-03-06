@@ -3,6 +3,7 @@ class Api::EventsController < ApplicationController
   respond_to :json, :xml
   
   before_action :offset_params, only: [:index, :nearby]
+  before_action :api_authenticate, only: [:index, :show, :nearby]
   
   def index 
     events = Event.limit(@limit).offset(@offset)
@@ -42,6 +43,48 @@ class Api::EventsController < ApplicationController
       render json: error, status: :bad_request
     end
   end
+  
+  def api_authenticate 
+    if request.headers["Authorization"].present?
+      # Take the last part in The header (ignore Bearer)
+      auth_header = request.headers['Authorization'].split(' ').last
+      key = User.find_by_key(auth_header)
+      if !key
+        render json: { error: 'The provided apikey wasn´t correct' }, status: :bad_request 
+      end
+    else
+      render json: { error: 'Need to include the Authorization header' }, status: :forbidden # The header isn´t present
+    end
+  end
+  
+   # This method is for encoding the JWT before sending it out
+  def encodeJWT(user, exp=2.hours.from_now)
+    # add the expire to the payload, as an integer
+    payload = { user_id: user.id }
+    payload[:exp] = exp.to_i
+    
+    # Encode the payload whit the application secret, and a more advanced hash method (creates header with JWT gem)
+    JWT.encode( payload, Rails.application.secrets.secret_key_base, "HS512")
+    
+  end
+  
+  # When we get a call we have to decode it - Returns the payload if good otherwise false
+  def decodeJWT(token)
+   # puts token
+    payload = JWT.decode(token, Rails.application.secrets.secret_key_base, "HS512")
+   # puts payload
+    if payload[0]["exp"] >= Time.now.to_i
+      payload
+    else
+      puts "time fucked up"
+      false
+    end
+    # catch the error if token is wrong
+    rescue => error
+      puts error
+      nil
+  end
+
   
   private 
   
